@@ -8,6 +8,7 @@
     />
     <title>Proyecto Final</title>
     <link rel="stylesheet" href="./style.css" />
+    <link rel="icon" href="/favicon.png" />
   </head>
   <body>
     <div id="loading">Loading 3D environment...</div>
@@ -33,6 +34,9 @@
     <!-- Diálogo de glitch “qué cojones?” -->
     <div id="glitchDialogue"></div>
 
+    <!-- Texto “Y para inspeccionar” del glitch -->
+    <div id="bottomHint"></div>
+
     <!-- Overlay de “found a soda” -->
     <div id="pickupOverlay">
       <div class="pickup-inner">
@@ -48,26 +52,29 @@
       </div>
     </div>
 
-<!-- Sonidos -->
-<audio id="glitchSfx" src="/glitchsound.mp3"></audio>
-
-<!-- este será el de los muros invisibles -->
-<audio id="stairsBlockSfx" src="/scary.mp3"></audio>
-
-<!-- nuevo: ambiente de fondo -->
-<audio id="ambienceSfx" src="/horrorambience.mp3"></audio>
-
-<!-- nuevo: sonido al encontrar la soda -->
-<audio id="foundSfx" src="/found.mp3"></audio>
+    <!-- Sonidos -->
+    <audio id="glitchSfx" src="/glitchsound.mp3"></audio>
+    <audio id="stairsBlockSfx" src="/scary.mp3"></audio>
+    <audio id="ambienceSfx" src="/horrorambience.mp3"></audio>
+    <audio id="foundSfx" src="/found.mp3"></audio>
 
     <!-- Menú tipo Undertale -->
     <div id="menu">
       <div class="ut-menu">
-        <div class="ut-title">SUBWAY NIGHTMARE</div>
+        <div class="ut-title" id="menuTitle">SUBWAY NIGHTMARE</div>
 
-        <div class="ut-options">
+        <!-- pantalla principal -->
+        <div class="ut-options" id="mainOptions">
           <div class="ut-option" id="continueBtn">START</div>
           <div class="ut-option" id="settingsBtn">SETTINGS</div>
+        </div>
+
+        <!-- pantalla de links (settings) -->
+        <div class="ut-options ut-links hidden" id="settingsOptions">
+          <div class="ut-subtitle">thanks for playing! made by:</div>
+          <button class="ut-btn" id="igBtn">INSTAGRAM</button>
+          <button class="ut-btn ut-btn-red" id="ghBtn">GITHUB</button>
+          <div class="ut-back" id="backBtn">↩ back</div>
         </div>
       </div>
     </div>

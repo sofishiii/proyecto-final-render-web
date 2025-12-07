@@ -66,10 +66,10 @@ body {
 }
 
 .ut-option:hover {
-    color: #ff4040; /* rojo, puedes cambiar el tono */
-  }
+  color: #ff4040;
+}
 
-/* Flecha estilo Undertale */
+/* Flecha Undertale usando ::before */
 .ut-option::before {
   content: "▶";
   position: absolute;
@@ -103,7 +103,7 @@ body {
   background: rgba(0, 0, 0, 0.85);
   padding: 10px 16px;
   border-radius: 10px;
-  font-size:20px;
+  font-size: 20px;
   letter-spacing: 1px;
   display: none;
   z-index: 50;
@@ -188,8 +188,8 @@ body {
   text-shadow: 0 0 3px #000, 0 0 6px #000;
   pointer-events: none;
   opacity: 0;
-  white-space: pre-line; /* para respetar saltos de línea con \n */
-  transform: translate(-50%, -180%);
+  white-space: pre-line;
+  transform: translate(0, 0);
   transition: opacity 0.15s ease-out;
 }
 
@@ -197,6 +197,22 @@ body {
   opacity: 1;
   animation: hintFloat 1.4s ease-in-out infinite alternate,
     hintSpin 4s linear infinite;
+}
+
+#bottomHint {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 14px;
+  color: white;
+  letter-spacing: 1px;
+  z-index: 6000;
+  display: none;
 }
 
 @keyframes hintFloat {
@@ -285,7 +301,69 @@ body {
   image-rendering: pixelated;
 }
 
-/* Por si acaso: botones por defecto sin bordes feos */
+/* botones nativos */
 button {
   font-family: inherit;
+}
+
+/* ocultar cosas genéricas */
+.hidden {
+  display: none !important;
+}
+
+/* subtítulo LINKS */
+.ut-subtitle {
+  font-family: "Press Start 2P", system-ui, sans-serif;
+  font-size: 20px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* contenedor de las opciones de links */
+.ut-links {
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* botones Undertale */
+.ut-btn {
+  font-family: "Press Start 2P", system-ui, sans-serif;
+  font-size: 16px;
+  padding: 10px 22px;
+  border: 3px solid #fdfdfd;
+  background: #000;
+  color: #fff;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 2px #000, 0 0 8px rgba(0, 0, 0, 0.8);
+}
+
+.ut-btn-red {
+  border-color: #ff4040;
+  color: #ff4040;
+}
+
+.ut-btn:hover {
+  background: #fff;
+  color: #000;
+}
+
+.ut-btn-red:hover {
+  background: #ff4040;
+  color: #000;
+}
+
+/* botón de volver */
+.ut-back {
+  margin-top: 24px;
+  font-family: "Press Start 2P", system-ui, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.ut-back:hover {
+  opacity: 1;
 }

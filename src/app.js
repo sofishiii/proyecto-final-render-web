@@ -109,12 +109,13 @@ const inspectText = document.getElementById("inspectText");
 const closeInspect = document.getElementById("closeInspect");
 const inspectBottom = document.getElementById("inspectBottom");
 const introDialogue = document.getElementById("introDialogue");
+const bottomHint = document.getElementById("bottomHint");
 
 // audios
-const glitchAudio = document.getElementById("glitchSfx");        // glitch_scare.mp3
-const stairsBlockAudio = document.getElementById("stairsBlockSfx"); // scary.mp3
-const ambienceAudio = document.getElementById("ambienceSfx");    // horrorambience.mp3
-const foundAudio = document.getElementById("foundSfx");          // found.mp3
+const glitchAudio = document.getElementById("glitchSfx");
+const stairsBlockAudio = document.getElementById("stairsBlockSfx");
+const ambienceAudio = document.getElementById("ambienceSfx");
+const foundAudio = document.getElementById("foundSfx");
 
 if (introDialogue) {
   introDialogue.style.display = "none";
@@ -135,13 +136,23 @@ let currentInteract = null;
 let prevFov = camera.fov;
 let onStairs = false;
 
+// glitch trigger area (override manual)
+let glitchCenter = new THREE.Vector3(
+  12.028076814739617,
+  2.996876314663927,
+  15.729824064364227
+);
+let isPlayerInGlitchArea = false;
+
 // ------------------- GLITCH DIALOG -------------------
 
-const GLITCH_TEXT = "¿QUÉ COJONES?";
+const GLITCH_TEXT = "qué cojones?";
 let glitchTypingTimer = null;
 let glitchHideTimeout = null;
+let glitchDialogueVisible = false;
 
 function hideGlitchDialogue() {
+  glitchDialogueVisible = false;
   if (glitchTypingTimer) {
     clearInterval(glitchTypingTimer);
     glitchTypingTimer = null;
@@ -156,6 +167,7 @@ function hideGlitchDialogue() {
 function showGlitchDialogue() {
   if (!glitchDialogue) return;
   hideGlitchDialogue();
+  glitchDialogueVisible = true;
 
   glitchDialogue.style.display = "block";
   glitchDialogue.textContent = "";
@@ -172,7 +184,6 @@ function showGlitchDialogue() {
     }
   }, speed);
 
-  // 🔊 sonido del glitch
   if (glitchAudio) {
     glitchAudio.currentTime = 0;
     glitchAudio
@@ -232,10 +243,9 @@ updateInventoryUI();
 function showSodaPickup() {
   if (!pickupOverlay || !pickupText || !pickupImg) return;
 
-  pickupText.textContent = "FOUND A SODA!";
+  pickupText.textContent = "found a soda";
   pickupImg.src = "/sodapop.png";
 
-  // 🔊 sonido de item encontrado
   if (foundAudio) {
     foundAudio.currentTime = 0;
     foundAudio
@@ -249,6 +259,19 @@ function showSodaPickup() {
   pickupTimeout = setTimeout(() => {
     pickupOverlay.classList.remove("visible");
   }, 2500);
+}
+
+// ------------------- HELPERS -------------------
+
+function addInteractableFromTemplate(mesh, templateName) {
+  const t = interactableConfig.find((cfg) => cfg.name === templateName);
+  if (!t) return;
+  interactables.push({
+    mesh,
+    description: t.description,
+    bottomText: t.bottomText || "",
+    isGlitch: false,
+  });
 }
 
 // ------------------- LOAD GLB -------------------
@@ -268,24 +291,25 @@ loader.load(
       if (!child.isMesh) return;
 
       child.geometry.computeBoundingBox();
-      const name = child.name || "";
-      const n = name.toLowerCase();
+      const rawName = child.name || "";
+      const lowerName = rawName.toLowerCase();
 
-      const isStLike = n.startsWith("st_");
+      const isStLike = lowerName.startsWith("st_");
       const isFloorLike =
-        n.includes("floor") ||
-        n.includes("piso") ||
+        lowerName.includes("floor") ||
+        lowerName.includes("piso") ||
         isStLike ||
-        n.includes("stairs") ||
-        n.includes("stair") ||
-        n.includes("rail");
+        lowerName.includes("stairs") ||
+        lowerName.includes("stair") ||
+        lowerName.includes("rail");
 
       if (isFloorLike) floorMeshes.push(child);
       else colliders.push(child);
 
       if (isStLike) stMeshes.push(child);
 
-      const cfg = interactableConfig.find((x) => x.name === child.name);
+      // Exact config
+      let cfg = interactableConfig.find((x) => x.name === rawName);
       if (cfg) {
         interactables.push({
           mesh: child,
@@ -293,10 +317,22 @@ loader.load(
           bottomText: cfg.bottomText || "",
           isGlitch: false,
         });
+      } else {
+        // Copias tipo Vending_machine001, automatic_ticket_gate001, metro_map002, etc.
+        if (rawName.startsWith("Vending_machine")) {
+          addInteractableFromTemplate(child, "Vending_machine");
+        } else if (rawName.startsWith("ticket_machine")) {
+          addInteractableFromTemplate(child, "ticket_machine");
+        } else if (rawName.startsWith("automatic_ticket_gate")) {
+          addInteractableFromTemplate(child, "automatic_ticket_gate");
+        } else if (rawName.startsWith("metro_map")) {
+          addInteractableFromTemplate(child, "metro_map");
+        }
       }
     });
 
-    // detectar "St_" encimados (glitch)
+    // detectar "St_" encimados (por si quieres seguir usando isGlitch),
+    // aunque ahora el trigger del glitch es por coordenada
     const glitchSet = new Set();
     for (let i = 0; i < stMeshes.length; i++) {
       for (let j = i + 1; j < stMeshes.length; j++) {
@@ -326,6 +362,7 @@ loader.load(
       }
     });
 
+    // NOTA: glitchCenter ya está fijado manualmente arriba.
     collisionsEnabled = true;
 
     const loading = document.getElementById("loading");
@@ -389,7 +426,6 @@ function showDreamDialogue() {
 document.body.addEventListener(
   "click",
   () => {
-    // Prime efectos cortos para evitar bloqueo
     const toPrime = [glitchAudio, stairsBlockAudio, foundAudio];
     toPrime.forEach((a) => {
       if (!a) return;
@@ -400,7 +436,6 @@ document.body.addEventListener(
         .catch(() => {});
     });
 
-    // Ambiente en loop
     if (ambienceAudio) {
       ambienceAudio.muted = false;
       ambienceAudio.loop = true;
@@ -420,17 +455,23 @@ document.addEventListener("keydown", (e) => {
   keys[key] = true;
 
   if (key === "y") {
-    if (currentInteract?.isGlitch) {
-      // inspeccionar glitch → muestra "qué cojones?" + sonido glitch
+    // glitch por coordenada
+    if (isPlayerInGlitchArea) {
+      if (bottomHint) bottomHint.style.display = "none";
       triggerGlitch();
-    } else {
-      if (inspecting) stopInspect();
-      else if (currentInteract) startInspect(currentInteract);
+      return;
+    }
+
+    // resto de objetos: inspección normal
+    if (inspecting) {
+      stopInspect();
+    } else if (currentInteract) {
+      startInspect(currentInteract);
     }
   }
 
   if (key === "x") {
-    if (currentInteract && currentInteract.mesh.name === "Vending_machine") {
+    if (currentInteract && currentInteract.mesh.name.startsWith("Vending_machine")) {
       if (!inventory.soda) {
         inventory.soda = true;
         updateInventoryUI();
@@ -571,7 +612,9 @@ function updateHeight() {
   const objName =
     (obj?.name || obj?.parent?.name || "").toLowerCase();
 
-  onStairs = objName.includes("stairs") || objName.includes("stair");
+  onStairs =
+    objName.includes("stairs") ||
+    objName.includes("stair");
 
   if (onStairs) {
     finalY = Math.min(finalY, STAIRS_MAX_Y);
@@ -599,10 +642,12 @@ function updateInteraction() {
   camera.getWorldDirection(camWorldDir);
   interactRay.set(camWorldPos, camWorldDir);
 
-  const hits = interactRay.intersectObjects(
-    interactables.map((i) => i.mesh),
-    true
-  );
+  // raycast solo contra objetos NO glitch
+  const normalMeshes = interactables
+    .filter((i) => !i.isGlitch)
+    .map((i) => i.mesh);
+
+  const hits = interactRay.intersectObjects(normalMeshes, true);
 
   if (hits.length === 0) {
     if (interactHint) interactHint.classList.remove("visible");
@@ -614,9 +659,10 @@ function updateInteraction() {
 
   const found = interactables.find(
     (i) =>
-      i.mesh === hit.object ||
-      i.mesh === hit.object.parent ||
-      i.mesh === hit.object.parent?.parent
+      !i.isGlitch &&
+      (i.mesh === hit.object ||
+        i.mesh === hit.object.parent ||
+        i.mesh === hit.object.parent?.parent)
   );
 
   if (!found) {
@@ -625,8 +671,7 @@ function updateInteraction() {
     return;
   }
 
-  const maxDist = found.isGlitch ? 4 : 3;
-
+  const maxDist = 3;
   if (hit.distance > maxDist) {
     if (interactHint) interactHint.classList.remove("visible");
     currentInteract = null;
@@ -635,22 +680,20 @@ function updateInteraction() {
 
   currentInteract = found;
 
-  if (interactHint) {
-    interactHint.classList.add("visible");
+  if (!interactHint) return;
 
-    if (found.mesh.name === "Vending_machine") {
-      if (inventory.soda) {
-        interactHint.textContent = "Y para inspeccionar";
-      } else {
-        interactHint.textContent =
-          "Y para inspeccionar\nX para tomar un refresco";
-      }
-    } else if (found.isGlitch) {
-      interactHint.textContent = "Y para mirar más de cerca";
+  if (found.mesh.name.startsWith("Vending_machine")) {
+    if (inventory.soda) {
+      interactHint.textContent = "Y para inspeccionar";
     } else {
-      interactHint.textContent = "Y para interactuar";
+      interactHint.textContent =
+        "Y para inspeccionar\nX para tomar un refresco";
     }
+  } else {
+    interactHint.textContent = "Y para interactuar";
   }
+
+  interactHint.classList.add("visible");
 }
 
 function updateHintPosition() {
@@ -661,7 +704,8 @@ function updateHintPosition() {
     return;
   }
 
-  currentInteract.mesh.getWorldPosition(tempWorldPos);
+  const mesh = currentInteract.mesh;
+  mesh.getWorldPosition(tempWorldPos);
   tempNDC.copy(tempWorldPos).project(camera);
 
   if (tempNDC.z > 1) {
@@ -672,15 +716,50 @@ function updateHintPosition() {
   const x = (tempNDC.x * 0.5 + 0.5) * window.innerWidth;
   const y = (-tempNDC.y * 0.5 + 0.5) * window.innerHeight;
 
-  interactHint.style.left = `${x}px`;
-  interactHint.style.top = `${y}px`;
+  const offsetX = 0;
+  const offsetY = -40;
+
+  interactHint.style.left = `${x + offsetX}px`;
+  interactHint.style.top = `${y + offsetY}px`;
+}
+
+// ------------------- GLITCH AREA (POR COORDENADA) -------------------
+
+function updateGlitchArea() {
+  if (!glitchCenter || !bottomHint) {
+    isPlayerInGlitchArea = false;
+    return;
+  }
+
+  const p = cameraContainer.position;
+  const dx = p.x - glitchCenter.x;
+  const dz = p.z - glitchCenter.z;
+  const dy = p.y - glitchCenter.y;
+
+  const horizDist = Math.sqrt(dx * dx + dz * dz);
+
+  // radio pequeño para "pisar" la zona
+  const RADIUS = 2.0;
+  const MAX_VERTICAL_DIFF = 1.5;
+
+  if (horizDist < RADIUS && Math.abs(dy) < MAX_VERTICAL_DIFF) {
+    isPlayerInGlitchArea = true;
+    if (!glitchDialogueVisible) {
+      bottomHint.textContent = "Y para inspeccionar";
+      bottomHint.style.display = "block";
+    }
+  } else {
+    isPlayerInGlitchArea = false;
+    if (!glitchDialogueVisible) {
+      bottomHint.style.display = "none";
+    }
+  }
 }
 
 // ------------------- INSPECT MODE -------------------
 
 function startInspect(obj) {
   if (!obj) return;
-  if (obj.isGlitch) return;
 
   inspecting = true;
 
@@ -754,6 +833,7 @@ function animate() {
 
   updateInteraction();
   updateHintPosition();
+  updateGlitchArea();
 
   renderer.render(scene, camera);
 }
@@ -767,22 +847,77 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
 // ------------------- MENU -------------------
 
 let menu, continueBtn, settingsBtn;
+let menuTitle, mainOptions, settingsOptions;
+let igBtn, ghBtn, backBtn;
+let menuArrow;
+let menuState = "main"; // "main" | "settings"
+
+function positionArrow() {
+  if (!menuArrow || !menu || menuState !== "main") return;
+
+  let selected = null;
+  if (continueBtn && continueBtn.classList.contains("selected")) {
+    selected = continueBtn;
+  } else if (settingsBtn && settingsBtn.classList.contains("selected")) {
+    selected = settingsBtn;
+  }
+  if (!selected) return;
+
+  const menuRect = menu.getBoundingClientRect();
+  const optRect = selected.getBoundingClientRect();
+  const arrowRect = menuArrow.getBoundingClientRect();
+
+  const left = optRect.left - menuRect.left - 24;
+  const top =
+    optRect.top -
+    menuRect.top +
+    optRect.height / 2 -
+    arrowRect.height / 2;
+
+  menuArrow.style.left = `${left}px`;
+  menuArrow.style.top = `${top}px`;
+}
 
 function setMenuSelection(element) {
   if (!element) return;
   if (continueBtn) continueBtn.classList.remove("selected");
   if (settingsBtn) settingsBtn.classList.remove("selected");
   element.classList.add("selected");
+  positionArrow();
+}
+
+function showMainMenuPage() {
+  menuState = "main";
+  if (menuTitle) menuTitle.textContent = "SUBWAY NIGHTMARE";
+
+  if (mainOptions) mainOptions.classList.remove("hidden");
+  if (settingsOptions) settingsOptions.classList.add("hidden");
+
+  if (menuArrow) {
+    menuArrow.style.display = "block";
+    positionArrow();
+  }
+
+  setMenuSelection(continueBtn);
+}
+
+function showSettingsPage() {
+  menuState = "settings";
+  if (menuTitle) menuTitle.textContent = "LINKS";
+
+  if (mainOptions) mainOptions.classList.add("hidden");
+  if (settingsOptions) settingsOptions.classList.remove("hidden");
+
+  if (menuArrow) menuArrow.style.display = "none";
 }
 
 function showMenu() {
   if (menu) {
     menu.style.display = "flex";
-    setMenuSelection(continueBtn);
+    showMainMenuPage();
   }
   menuVisible = true;
   if (document.pointerLockElement === document.body) {
@@ -800,12 +935,22 @@ window.addEventListener("load", () => {
   menu = document.getElementById("menu");
   continueBtn = document.getElementById("continueBtn");
   settingsBtn = document.getElementById("settingsBtn");
+  menuTitle = document.getElementById("menuTitle");
+  mainOptions = document.getElementById("mainOptions");
+  settingsOptions = document.getElementById("settingsOptions");
+  igBtn = document.getElementById("igBtn");
+  ghBtn = document.getElementById("ghBtn");
+  backBtn = document.getElementById("backBtn");
+  menuArrow = document.getElementById("menuArrow");
 
-  setMenuSelection(continueBtn);
+  showMainMenuPage();
 
+  // hover solo en el menú principal
   [continueBtn, settingsBtn].forEach((opt) => {
     if (!opt) return;
-    opt.addEventListener("mouseenter", () => setMenuSelection(opt));
+    opt.addEventListener("mouseenter", () => {
+      if (menuState === "main") setMenuSelection(opt);
+    });
   });
 
   if (continueBtn) {
@@ -820,7 +965,26 @@ window.addEventListener("load", () => {
 
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      alert("Settings coming soon!");
+      showSettingsPage();
+    });
+  }
+
+  // BOTONES DE LINKS
+  if (igBtn) {
+    igBtn.addEventListener("click", () => {
+      window.open("https://instagram.com/sofisisii", "_blank");
+    });
+  }
+
+  if (ghBtn) {
+    ghBtn.addEventListener("click", () => {
+      window.open("https://github.com/sofishiii", "_blank");
+    });
+  }
+
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      showMainMenuPage();
     });
   }
 
