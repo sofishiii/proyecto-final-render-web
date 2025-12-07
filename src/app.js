@@ -244,7 +244,7 @@ function showSodaPickup() {
   if (!pickupOverlay || !pickupText || !pickupImg) return;
 
   pickupText.textContent = "ENCONTRASTE UNA COCA!";
-  pickupImg.src = "sodapop.png";
+  pickupImg.src = "/sodapop.png";
 
   if (foundAudio) {
     foundAudio.currentTime = 0;
