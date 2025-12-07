@@ -243,8 +243,8 @@ updateInventoryUI();
 function showSodaPickup() {
   if (!pickupOverlay || !pickupText || !pickupImg) return;
 
-  pickupText.textContent = "found a soda";
-  pickupImg.src = "/sodapop.png";
+  pickupText.textContent = "ENCONTRASTE UNA COCA!";
+  pickupImg.src = "sodapop.png";
 
   if (foundAudio) {
     foundAudio.currentTime = 0;
