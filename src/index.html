@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Proyecto Final</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="loading">Loading 3D environment...</div>
+
+    <!-- Canvas principal -->
+    <canvas id="webgl"></canvas>
+
+    <!-- Diálogo inicial / sueño / warnings -->
+    <div id="introDialogue"></div>
+
+    <!-- Hint flotante de interacción (Y / X) -->
+    <div id="interactHint">Y para interactuar</div>
+
+    <!-- Panel de inspección -->
+    <div id="inspectPanel">
+      <button id="closeInspect">X</button>
+      <p id="inspectText"></p>
+    </div>
+
+    <!-- Texto tipo diálogo bajo al inspeccionar -->
+    <div id="inspectBottom"></div>
+
+    <!-- Diálogo de glitch “qué cojones?” -->
+    <div id="glitchDialogue"></div>
+
+    <!-- Overlay de “found a soda” -->
+    <div id="pickupOverlay">
+      <div class="pickup-inner">
+        <img id="pickupImg" src="" alt="item" />
+        <div id="pickupText">FOUND A SODA!</div>
+      </div>
+    </div>
+
+    <!-- Inventario simple -->
+    <div id="inventory">
+      <div id="inventorySoda" class="inventory-item hidden">
+        <img src="/sodapop.png" alt="soda" />
+      </div>
+    </div>
+
+<!-- Sonidos -->
+<audio id="glitchSfx" src="/glitchsound.mp3"></audio>
+
+<!-- este será el de los muros invisibles -->
+<audio id="stairsBlockSfx" src="/scary.mp3"></audio>
+
+<!-- nuevo: ambiente de fondo -->
+<audio id="ambienceSfx" src="/horrorambience.mp3"></audio>
+
+<!-- nuevo: sonido al encontrar la soda -->
+<audio id="foundSfx" src="/found.mp3"></audio>
+
+    <!-- Menú tipo Undertale -->
+    <div id="menu">
+      <div class="ut-menu">
+        <div class="ut-title">SUBWAY NIGHTMARE</div>
+
+        <div class="ut-options">
+          <div class="ut-option" id="continueBtn">START</div>
+          <div class="ut-option" id="settingsBtn">SETTINGS</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
