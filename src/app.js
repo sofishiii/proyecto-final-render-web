@@ -46,6 +46,21 @@ const EXTRA_WALL_X1 = 6.3887;
 const EXTRA_WALL_X2 = 18.5848;
 const STAIRS_MAX_Y = 3.2;
 
+// ------------------- TRAIN DOORWAY (puerta abierta del tren) -------------------
+
+// Ajusta estas coords a la puerta abierta del vagón
+const TRAIN_DOOR_CENTER = new THREE.Vector3(15.0, 3.0, 5.0);
+// tamaño de la “ventana” de paso
+const TRAIN_DOOR_HALF_SIZE_X = 1.2;
+const TRAIN_DOOR_HALF_SIZE_Z = 1.0;
+
+function isInsideTrainDoorway(pos) {
+  return (
+    Math.abs(pos.x - TRAIN_DOOR_CENTER.x) < TRAIN_DOOR_HALF_SIZE_X &&
+    Math.abs(pos.z - TRAIN_DOOR_CENTER.z) < TRAIN_DOOR_HALF_SIZE_Z
+  );
+}
+
 // ------------------- JUMP / SALTO -------------------
 
 let isJumping = false;
@@ -243,7 +258,7 @@ updateInventoryUI();
 function showSodaPickup() {
   if (!pickupOverlay || !pickupText || !pickupImg) return;
 
-  pickupText.textContent = "ENCONTRASTE UNA COCA!";
+  pickupText.textContent = "found a soda";
   pickupImg.src = "/sodapop.png";
 
   if (foundAudio) {
@@ -331,8 +346,7 @@ loader.load(
       }
     });
 
-    // detectar "St_" encimados (por si quieres seguir usando isGlitch),
-    // aunque ahora el trigger del glitch es por coordenada
+    // detectar "St_" encimados (para marcar como glitch si quieres)
     const glitchSet = new Set();
     for (let i = 0; i < stMeshes.length; i++) {
       for (let j = i + 1; j < stMeshes.length; j++) {
@@ -362,7 +376,6 @@ loader.load(
       }
     });
 
-    // NOTA: glitchCenter ya está fijado manualmente arriba.
     collisionsEnabled = true;
 
     const loading = document.getElementById("loading");
@@ -535,7 +548,7 @@ function tryMove(delta) {
     return;
   }
 
-  // muros invisibles
+  // muros invisibles en Z -> muestran texto
   if (currentPos.z <= STAIRS_Z_LIMIT && target.z > STAIRS_Z_LIMIT) {
     showStairsWarning();
     return;
@@ -549,11 +562,11 @@ function tryMove(delta) {
     return;
   }
 
+  // muros invisibles en X -> solo bloquean, sin texto
   if (
     (currentPos.x < EXTRA_WALL_X1 && target.x >= EXTRA_WALL_X1) ||
     (currentPos.x > EXTRA_WALL_X1 && target.x <= EXTRA_WALL_X1)
   ) {
-    showStairsWarning();
     return;
   }
 
@@ -561,7 +574,6 @@ function tryMove(delta) {
     (currentPos.x < EXTRA_WALL_X2 && target.x >= EXTRA_WALL_X2) ||
     (currentPos.x > EXTRA_WALL_X2 && target.x <= EXTRA_WALL_X2)
   ) {
-    showStairsWarning();
     return;
   }
 
@@ -573,12 +585,25 @@ function tryMove(delta) {
 function checkCollision(pos) {
   if (!collisionsEnabled || noclip || colliders.length === 0) return false;
 
+  const inDoorArea = isInsideTrainDoorway(pos);
+
   playerBB.setFromCenterAndSize(
     new THREE.Vector3(pos.x, pos.y, pos.z),
     new THREE.Vector3(0.6, 1.6, 0.6)
   );
 
   for (const c of colliders) {
+    const name = (c.name || "").toLowerCase();
+
+    const isTrain =
+      name.includes("subway_car") || name.includes("subway_car001");
+
+    // si estamos en la zona de la puerta y el collider es del tren,
+    // lo ignoramos para poder entrar al vagón
+    if (inDoorArea && isTrain) {
+      continue;
+    }
+
     const box = new THREE.Box3().setFromObject(c);
     if (playerBB.intersectsBox(box)) {
       return true;
@@ -738,7 +763,6 @@ function updateGlitchArea() {
 
   const horizDist = Math.sqrt(dx * dx + dz * dz);
 
-  // radio pequeño para "pisar" la zona
   const RADIUS = 2.0;
   const MAX_VERTICAL_DIFF = 1.5;
 
@@ -847,46 +871,19 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
 // ------------------- MENU -------------------
 
 let menu, continueBtn, settingsBtn;
 let menuTitle, mainOptions, settingsOptions;
 let igBtn, ghBtn, backBtn;
-let menuArrow;
 let menuState = "main"; // "main" | "settings"
-
-function positionArrow() {
-  if (!menuArrow || !menu || menuState !== "main") return;
-
-  let selected = null;
-  if (continueBtn && continueBtn.classList.contains("selected")) {
-    selected = continueBtn;
-  } else if (settingsBtn && settingsBtn.classList.contains("selected")) {
-    selected = settingsBtn;
-  }
-  if (!selected) return;
-
-  const menuRect = menu.getBoundingClientRect();
-  const optRect = selected.getBoundingClientRect();
-  const arrowRect = menuArrow.getBoundingClientRect();
-
-  const left = optRect.left - menuRect.left - 24;
-  const top =
-    optRect.top -
-    menuRect.top +
-    optRect.height / 2 -
-    arrowRect.height / 2;
-
-  menuArrow.style.left = `${left}px`;
-  menuArrow.style.top = `${top}px`;
-}
 
 function setMenuSelection(element) {
   if (!element) return;
   if (continueBtn) continueBtn.classList.remove("selected");
   if (settingsBtn) settingsBtn.classList.remove("selected");
   element.classList.add("selected");
-  positionArrow();
 }
 
 function showMainMenuPage() {
@@ -896,22 +893,18 @@ function showMainMenuPage() {
   if (mainOptions) mainOptions.classList.remove("hidden");
   if (settingsOptions) settingsOptions.classList.add("hidden");
 
-  if (menuArrow) {
-    menuArrow.style.display = "block";
-    positionArrow();
-  }
-
   setMenuSelection(continueBtn);
 }
 
 function showSettingsPage() {
   menuState = "settings";
-  if (menuTitle) menuTitle.textContent = "LINKS";
+  if (menuTitle) menuTitle.textContent = "links";
 
   if (mainOptions) mainOptions.classList.add("hidden");
   if (settingsOptions) settingsOptions.classList.remove("hidden");
 
-  if (menuArrow) menuArrow.style.display = "none";
+  if (continueBtn) continueBtn.classList.remove("selected");
+  if (settingsBtn) settingsBtn.classList.remove("selected");
 }
 
 function showMenu() {
@@ -941,7 +934,6 @@ window.addEventListener("load", () => {
   igBtn = document.getElementById("igBtn");
   ghBtn = document.getElementById("ghBtn");
   backBtn = document.getElementById("backBtn");
-  menuArrow = document.getElementById("menuArrow");
 
   showMainMenuPage();
 
@@ -969,22 +961,22 @@ window.addEventListener("load", () => {
     });
   }
 
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      showMainMenuPage();
+    });
+  }
+
   // BOTONES DE LINKS
   if (igBtn) {
     igBtn.addEventListener("click", () => {
-      window.open("https://instagram.com/sofisisii", "_blank");
+      window.open("https://instagram.com/tu_usuario", "_blank");
     });
   }
 
   if (ghBtn) {
     ghBtn.addEventListener("click", () => {
-      window.open("https://github.com/sofishiii", "_blank");
-    });
-  }
-
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      showMainMenuPage();
+      window.open("https://github.com/tu_usuario", "_blank");
     });
   }
 
